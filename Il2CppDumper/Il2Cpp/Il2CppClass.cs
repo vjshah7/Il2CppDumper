@@ -1,4 +1,6 @@
-﻿using System;
+using System;
+using System.Linq;
+using System.Reflection;
 
 namespace Il2CppDumper
 {
@@ -63,6 +65,21 @@ namespace Il2CppDumper
         public ulong codeGenModulesCount;
         [Version(Min = 24.2)]
         public ulong codeGenModules;
+
+        // Every registration field occupies one native pointer-sized slot.
+        internal static ulong CodeGenModulesOffset(double version, ulong pointerSize)
+        {
+            ulong offset = 0;
+            foreach (var field in typeof(Il2CppCodeRegistration).GetFields())
+            {
+                var ranges = field.GetCustomAttributes<VersionAttribute>().ToArray();
+                if (ranges.Length > 0 && !ranges.Any(r => version >= r.Min && version <= r.Max))
+                    continue;
+                if (field.Name == nameof(codeGenModules)) return offset;
+                offset += pointerSize;
+            }
+            throw new NotSupportedException($"No code generation modules in version {version}.");
+        }
     }
 
     public class Il2CppMetadataRegistration

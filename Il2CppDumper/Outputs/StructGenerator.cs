@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -419,6 +419,7 @@ namespace Il2CppDumper
                 case 29:
                 case 29.1:
                 case 31:
+                case 39:
                     sb.Append(HeaderConstants.HeaderV29);
                     break;
                 default:

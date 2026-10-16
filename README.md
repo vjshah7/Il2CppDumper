@@ -11,6 +11,7 @@ Unity il2cpp reverse engineer
 * Complete DLL restore (except code), can be used to extract `MonoBehaviour` and `MonoScript`
 * Supports ELF, ELF64, Mach-O, PE, NSO and WASM format
 * Supports Unity 5.3 - 2022.2
+* Adds Unity 6 metadata v39 support, validated with an ARM64 ELF binary/metadata pair; v35/v38 are not yet enabled
 * Supports generate IDA, Ghidra and Binary Ninja scripts to help them better analyze il2cpp files
 * Supports generate structures header file
 * Supports Android memory dumped `libil2cpp.so` file to bypass protection
@@ -27,6 +28,48 @@ The program will then generate all the output files in current working directory
 ```
 Il2CppDumper.exe <executable-file> <global-metadata> <output-directory>
 ```
+
+### Build and validate on Linux / WSL
+
+Install the .NET 8 SDK, then run from the repository root:
+
+```bash
+dotnet build Il2CppDumper/Il2CppDumper.csproj -c Release -f net8.0
+mkdir -p artifacts/v39
+dotnet Il2CppDumper/bin/Release/net8.0/Il2CppDumper.dll data/libil2cpp.so data/global-metadata.dat artifacts/v39
+```
+
+Open the generated `artifacts/v39/DummyDll` assemblies in dnSpy. The v39 reader
+preserves protobuf/custom attributes, enum underlying types and constants, and
+per-type interface lists. String literal lengths are recovered from the offset
+sentinel. Native registration discovery uses the versioned registration layout.
+
+Export reports assembly totals and attribute restoration errors. Failed
+assemblies are identified individually; any export or attribute restoration
+failure produces a nonzero exit code even if some DLLs were written. Redirected
+input skips the final keypress prompt.
+
+The regression harness uses the project's existing Mono.Cecil dependency:
+
+```bash
+dotnet run --project Il2CppDumper.Tests -c Release -p:TargetFrameworks=net8.0
+# Also inspect generated assemblies against the local game's metadata:
+dotnet run --project Il2CppDumper.Tests -c Release -p:TargetFrameworks=net8.0 -- data/global-metadata.dat artifacts/v39/DummyDll
+```
+
+Synthetic v29/v31/v39 fixtures cover index widths, enum constants, attributes
+across assemblies, generic parameter ownership, and failure diagnostics. The
+optional game check reopens every assembly, decodes all member attributes,
+compares attribute counts with metadata, and verifies the example protobuf tags
+and `ActionFlags` values. Game inputs in `data/` and outputs in `artifacts/` are
+ignored by git.
+
+The variable-width reader is adapted from
+[PR #922](https://github.com/Perfare/Il2CppDumper/pull/922), informed by
+[PR #903](https://github.com/Perfare/Il2CppDumper/pull/903). Enum normalization
+follows the shared parent/underlying-type slot identified in
+[PR #925](https://github.com/Perfare/Il2CppDumper/pull/925); its fixed 16-bit
+index assumptions are not used. Custom attribute emission remains enabled.
 
 ### Outputs
 
